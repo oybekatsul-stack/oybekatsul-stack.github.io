@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c140e">
+<title>Детектив Энтик</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=PT+Mono&display=swap">
+<style>
+/* Layout: pixel-art house on a dark oak desk; HUD above, touch controls below; puzzles open as parchment sheets over the map. */
+:root{
+  --oak:#1c140e; --oak-2:#2a1e15;
+  --candle:#e8a33d; --candle-dim:#9c6a27;
+  --parch:#efe3c8; --parch-2:#e2d2ae;
+  --ink:#2b1d12; --ink-soft:#5e4834;
+  --seal:#8e1f1f; --seal-hi:#b8322c; --ok:#3f6b3a; --muted:#c9b48e;
+  --f-display:"Old Standard TT","Times New Roman",Georgia,serif;
+  --f-body:"Lora",Georgia,"Times New Roman",serif;
+  --f-mono:"PT Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--oak)}
+body{margin:0;background:var(--oak);color:var(--parch);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);
+  -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--candle);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:12px 0 24px;display:flex;flex-direction:column;gap:10px}
+
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ttl{font-family:var(--f-display);font-weight:700;font-size:24px}
+.date{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--candle)}
+
+.hud{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.seals{display:flex;gap:6px}
+.seal{width:26px;height:26px;border-radius:50%;border:1.5px dashed var(--candle-dim);display:flex;align-items:center;justify-content:center;font-family:var(--f-display);font-size:12px;color:var(--candle-dim)}
+.seal.done{background:radial-gradient(circle at 35% 30%,var(--seal-hi),var(--seal) 65%);border:none;color:var(--parch)}
+.seal.now{border-style:solid;border-color:var(--candle);color:var(--candle)}
+.meter{flex:1;min-width:150px;display:flex;flex-direction:column;gap:3px}
+.meter-label{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.meter-bar{height:8px;border-radius:4px;background:var(--oak-2);overflow:hidden;border:1px solid rgba(232,163,61,.25)}
+.meter-fill{height:100%;width:0;background:linear-gradient(90deg,var(--candle),var(--seal-hi));transition:width .5s}
+.hint-btn{background:none;border:1px solid var(--candle-dim);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--candle)}
+.goal{font-size:14px;color:var(--parch);background:var(--oak-2);border-left:3px solid var(--candle);padding:7px 10px}
+.goal b{font-family:var(--f-mono);font-weight:400;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--candle);margin-right:6px}
+
+.stage{position:relative;border:3px solid #0e0a07;box-shadow:0 14px 30px rgba(0,0,0,.6);background:#000;line-height:0}
+#cv{display:block;width:100%;height:auto;touch-action:none}
+.dialog{position:absolute;left:8px;right:8px;bottom:8px;background:rgba(239,227,200,.97);color:var(--ink);border:2px solid var(--ink);border-radius:3px;padding:10px 12px 12px;line-height:1.45;font-size:15px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.dialog .who{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--seal);margin-bottom:2px}
+.dialog .more{position:absolute;right:10px;bottom:4px;font-size:11px;color:var(--ink-soft);font-family:var(--f-mono)}
+
+.controls{display:flex;align-items:center;justify-content:space-between;gap:16px;user-select:none;-webkit-user-select:none;touch-action:none}
+.dpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);gap:4px}
+.dpad button{background:var(--oak-2);border:1.5px solid var(--candle-dim);border-radius:8px;font-size:22px;color:var(--candle);display:flex;align-items:center;justify-content:center;touch-action:none}
+.dpad button.on{background:var(--candle-dim);color:var(--oak)}
+.dpad .u{grid-column:2;grid-row:1}.dpad .l{grid-column:1;grid-row:2}.dpad .r{grid-column:3;grid-row:2}.dpad .d{grid-column:2;grid-row:3}
+.act{width:96px;height:96px;border-radius:50%;border:none;background:radial-gradient(circle at 35% 30%,var(--seal-hi),var(--seal) 70%);color:var(--parch);font-family:var(--f-display);font-size:17px;box-shadow:0 4px 0 #4a0f0f;touch-action:none}
+.act:active{transform:translateY(2px);box-shadow:0 2px 0 #4a0f0f}
+.keys{font-size:13px;color:var(--muted);margin:0}
+@media (hover:hover) and (pointer:fine) and (min-width:900px){ .controls{display:none} }
+
+/* Overlays */
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(14,10,7,.88);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.sheet{max-width:680px;margin:0 auto;background:var(--parch);color:var(--ink);border-radius:3px;padding:22px 20px 24px;box-shadow:0 18px 40px rgba(0,0,0,.6),inset 0 0 60px rgba(139,99,52,.22);display:flex;flex-direction:column;gap:14px}
+.sheet + .sheet{margin-top:14px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+h1,h2{font-family:var(--f-display);font-weight:700;line-height:1.15;margin:0}
+h1{font-size:40px;color:var(--parch)}
+h2{font-size:26px;color:var(--ink)}
+p{margin:0}
+.note{font-size:14px;color:var(--ink-soft)}
+.task{border-left:3px solid var(--seal);padding-left:12px;font-style:italic}
+.btn{background:var(--seal);color:var(--parch);border:none;border-radius:3px;padding:12px 18px;font-family:var(--f-display);font-size:18px;min-height:48px}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink-soft)}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px}
+.intro{max-width:680px;margin:0 auto 14px;display:flex;flex-direction:column;gap:10px}
+.intro .lead{font-size:17px}
+.intro .sub{color:var(--muted)}
+
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.book{background:var(--ink);color:var(--parch);border:none;border-radius:2px 6px 6px 2px;padding:12px 12px 12px 16px;text-align:left;min-height:90px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;box-shadow:inset 6px 0 0 rgba(0,0,0,.35)}
+.book:nth-child(3n+2){background:#3d2716}.book:nth-child(3n){background:#28331f}
+.book .t{font-family:var(--f-display);font-size:16px;line-height:1.2}
+.book .y{font-family:var(--f-mono);font-size:12px;color:var(--candle)}
+.book.read{outline:2px solid var(--candle-dim)}
+.page{background:#fbf5e6;border:1px solid var(--parch-2);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.page .q{font-family:var(--f-display);font-style:italic;font-size:17px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.card{background:#fbf5e6;border:1.5px solid var(--parch-2);border-radius:3px;padding:10px 12px;font-size:15px;text-align:left;color:var(--ink);min-height:44px}
+.card.sel{border-color:var(--seal);box-shadow:inset 0 0 0 2px var(--seal)}
+.bins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bin{border:1.5px dashed var(--ink-soft);border-radius:3px;padding:10px;min-height:88px;background:rgba(255,255,255,.25);display:flex;flex-direction:column;gap:6px;text-align:left;color:var(--ink)}
+.bin .bn{font-family:var(--f-display);font-weight:700;font-size:16px}
+.bin .bd{font-size:12px;color:var(--ink-soft)}
+.bin .placed{font-size:13px;background:var(--parch-2);border-radius:2px;padding:3px 6px}
+.bin.armed{border-style:solid;border-color:var(--seal)}
+.arg{display:flex;flex-direction:column;gap:8px}
+.arg + .arg{border-top:1px solid var(--parch-2);padding-top:14px}
+.arg .who{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--seal)}
+.arg .claim{font-family:var(--f-display);font-size:18px;font-style:italic}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{background:#fbf5e6;border:1.5px solid var(--parch-2);border-radius:3px;padding:11px 12px;text-align:left;color:var(--ink);font-size:15px;min-height:44px}
+.opt.right{border-color:var(--ok);background:#e4ecd8}
+.opt.wrong{border-color:var(--seal);text-decoration:line-through;opacity:.65}
+.assembled{min-height:110px;background:#fbf5e6;border:1px solid var(--parch-2);padding:14px 16px;font-family:var(--f-display);font-size:19px;line-height:1.5}
+.assembled .ph{color:var(--ink-soft);font-family:var(--f-body);font-size:14px;font-style:italic}
+.frags{display:flex;flex-wrap:wrap;gap:8px}
+.frag{background:var(--ink);color:var(--parch);border:none;border-radius:2px;padding:10px 12px;font-family:var(--f-display);font-size:16px;text-align:left;min-height:44px}
+.frag[disabled]{visibility:hidden}
+.lock{display:flex;flex-direction:column;gap:12px}
+.dial{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fbf5e6;border:1px solid var(--parch-2);padding:12px 14px}
+.dial .stem{font-size:15px;min-width:0}
+.dial .val{font-family:var(--f-display);font-size:18px;font-weight:700;color:var(--seal);display:block;margin-top:4px}
+.turn{flex:none;width:48px;height:48px;border-radius:50%;border:2px solid var(--ink);background:radial-gradient(circle at 35% 30%,#c9a46a,#7a5a30);color:var(--parch);font-size:20px}
+.fb{border-radius:3px;padding:12px 14px;font-size:15px}
+.fb.good{background:#e4ecd8;border:1px solid var(--ok)}
+.fb.bad{background:#f3dcd4;border:1px solid var(--seal)}
+.fb b{font-family:var(--f-display)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#fbf5e6;border:1px solid var(--parch-2);padding:10px;display:flex;flex-direction:column}
+.stat .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.stat .v{font-family:var(--f-display);font-size:24px;font-weight:700}
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--parch-2)}
+.timeline .yr{font-family:var(--f-mono);font-size:14px;color:var(--seal)}
+.timeline .cs{font-family:var(--f-display);font-weight:700}
+.timeline .ln{font-size:14px;color:var(--ink-soft)}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--seal);color:var(--parch);padding:10px 16px;border-radius:3px;font-size:14px;z-index:40;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+.snd{background:none;border:1px solid var(--candle-dim);border-radius:999px;padding:4px 10px;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--candle)}
+.chapters{display:grid;grid-template-columns:1fr;gap:10px}
+.chap{background:#fbf5e6;border:1.5px solid var(--parch-2);border-radius:3px;padding:14px 16px;text-align:left;color:var(--ink);display:flex;flex-direction:column;gap:4px}
+.chap:hover{border-color:var(--seal)}
+.chap .cn{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--seal)}
+.chap .ct{font-family:var(--f-display);font-weight:700;font-size:20px}
+.chap .cd{font-size:14px;color:var(--ink-soft)}
+@media (max-width:420px){ .sheet{padding:18px 14px 20px} .bins{grid-template-columns:1fr} .dpad{grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)} .act{width:84px;height:84px} h1{font-size:32px} }
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="ttl">Детектив Энтик</div><div style="display:flex;gap:10px;align-items:center"><div class="date" id="topDate">11 ноября 1762 · Стэпни</div><button class="snd" id="sndBtn" type="button">Звук: вкл</button></div></div>
+  <div class="hud">
+    <div class="seals" id="seals"></div>
+    <div class="meter">
+      <div class="meter-label"><span id="meterLbl">Посыльные обыскивают дом</span><span id="pct">0%</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="fill"></div></div>
+    </div>
+    <button class="hint-btn" id="hintBtn" type="button">Подсказка</button>
+  </div>
+  <div class="goal" id="goal"><b>Цель</b><span id="goalTxt"></span></div>
+  <div class="stage">
+    <canvas id="cv" width="960" height="432" aria-label="Карта игры"></canvas>
+    <div class="dialog" id="dlg" hidden><div class="who" id="dlgWho"></div><div id="dlgTxt"></div><div class="more">нажмите ▸</div></div>
+  </div>
+  <div class="controls">
+    <div class="dpad">
+      <button class="u" type="button" data-d="up" aria-label="Вверх">▲</button>
+      <button class="l" type="button" data-d="left" aria-label="Влево">◀</button>
+      <button class="r" type="button" data-d="right" aria-label="Вправо">▶</button>
+      <button class="d" type="button" data-d="down" aria-label="Вниз">▼</button>
+    </div>
+    <button class="act" id="actBtn" type="button">Действие</button>
+  </div>
+  <p class="keys">Компьютер: стрелки или WASD — ходить, пробел или E — осмотреть. Телефон: крестик и красная кнопка. Подходите к предметам с золотой меткой.</p>
+</div>
+
+<div class="overlay" id="modal" hidden><div id="mbody"></div></div>
+<div class="overlay" id="screen"><div id="sbody"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var PEN_MISTAKE = 12, PEN_HINT = 8;
+var TS = 16, COLS = 20, ROWS = 9, SCALE = 3;
+var S, P, L;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var shade = document.createElement('canvas'); shade.width = cv.width; shade.height = cv.height;
+var sctx = shade.getContext('2d');
+
+function $(id){ return document.getElementById(id); }
+function h(tag, attrs){
+  var e = document.createElement(tag), k;
+  if (attrs) for (k in attrs){
+    if (!attrs.hasOwnProperty(k)) continue;
+    var v = attrs[k];
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  var kids = [];
+  (function flat(a){ for (var i=0;i<a.length;i++){ if (Array.isArray(a[i])) flat(a[i]); else kids.push(a[i]); } })(Array.prototype.slice.call(arguments, 2));
+  for (var i=0;i<kids.length;i++){ var c = kids[i]; if (c == null || c === false) continue; e.appendChild(c.nodeType ? c : document.createTextNode(String(c))); }
+  return e;
+}
+function shuffle(a){ a = a.slice(); for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+var toastT;
+function toast(msg){ var t=$('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function(){ t.hidden = true; }, 2600); }
+
+/* ================= Sound (synthesised, no files) ================= */
+var AC = null, muted = false, noiseBuf = null;
+try { muted = localStorage.getItem('entick-muted') === '1'; } catch(e){}
+function audioInit(){
+  try {
+    if (!AC){ var C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); }
+    if (AC && AC.state === 'suspended') AC.resume();
+    if (AC && !audioInit.unlocked){ // iOS unlock: play a silent buffer inside the gesture
+      var b = AC.createBuffer(1, 1, 22050), s = AC.createBufferSource(); s.buffer = b; s.connect(AC.destination); s.start(0); audioInit.unlocked = true;
+    }
+  } catch(e){}
+}
+function envG(g, t, a, d, peak){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function tone(freq, type, dur, peak, when, slideTo){
+  if (!AC || muted) return;
+  try {
+    var t = AC.currentTime + (when || 0), o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    envG(g, t, 0.008, dur, peak); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + 0.05);
+  } catch(e){}
+}
+function noise(dur, peak, ftype, freq, when, q){
+  if (!AC || muted) return;
+  try {
+    if (!noiseBuf){ noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); var d = noiseBuf.getChannelData(0); for (var i=0;i<d.length;i++) d[i] = Math.random()*2-1; }
+    var t = AC.currentTime + (when || 0), s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    s.buffer = noiseBuf; f.type = ftype; f.frequency.value = freq; if (q) f.Q.value = q;
+    envG(g, t, 0.004, dur, peak); s.connect(f); f.connect(g); g.connect(AC.destination); s.start(t, Math.random()*0.5); s.stop(t + dur + 0.05);
+  } catch(e){}
+}
+var SFX = {
+  step: function(){ if (L.id === 1) noise(0.07, 0.10, 'lowpass', 420 + Math.random()*120); else { noise(0.05, 0.07, 'bandpass', 2200 + Math.random()*300, 0, 3); } },
+  knock: function(){ for (var i=0;i<3;i++){ tone(90, 'sine', 0.2, 0.55, i*0.24, 50); noise(0.09, 0.3, 'lowpass', 320, i*0.24); } },
+  crackle: function(){ noise(0.02, 0.05 + Math.random()*0.05, 'highpass', 3000); },
+  ok: function(){ tone(659, 'triangle', 0.25, 0.22); tone(988, 'triangle', 0.45, 0.22, 0.12); },
+  bad: function(){ tone(140, 'sawtooth', 0.32, 0.13, 0, 85); },
+  door: function(){ tone(230, 'sawtooth', 0.55, 0.05, 0, 130); noise(0.35, 0.05, 'bandpass', 900, 0, 5); noise(0.12, 0.25, 'lowpass', 250, 0.5); },
+  page: function(){ noise(0.16, 0.10, 'highpass', 2600); noise(0.12, 0.07, 'highpass', 3200, 0.09); },
+  blip: function(){ tone(740, 'square', 0.04, 0.035); },
+  gavel: function(){ tone(170, 'square', 0.08, 0.18, 0, 110); noise(0.12, 0.35, 'lowpass', 1400); },
+  win: function(){ [523, 659, 784, 1047].forEach(function(f, i){ tone(f, 'triangle', 0.4, 0.2, i*0.15); }); tone(1047, 'triangle', 0.9, 0.12, 0.6); },
+  murmur: function(){ for (var i=0;i<4;i++) tone(180 + Math.random()*120, 'sine', 0.25, 0.02, i*0.18 + Math.random()*0.1); }
+};
+function setMuted(m){ muted = m; $('sndBtn').textContent = 'Звук: ' + (m ? 'выкл' : 'вкл'); try { localStorage.setItem('entick-muted', m ? '1' : '0'); } catch(e){} if (!m){ audioInit(); SFX.blip(); } }
+$('sndBtn').addEventListener('click', function(){ setMuted(!muted); });
+document.addEventListener('touchstart', audioInit, {passive:true});
+document.addEventListener('mousedown', audioInit);
+document.addEventListener('keydown', audioInit);
+
+/* ================= Drawing primitives ================= */
+function R(x,y,w,hh,c){ ctx.fillStyle = c; ctx.fillRect(x,y,w,hh); }
+function hash(x,y){ var n = (x*73856093) ^ (y*19349663); n = (n ^ (n >>> 13)) >>> 0; return n; }
+function tile(x,y){ if (y<0||y>=ROWS||x<0||x>=COLS) return 'W'; return L.map[y].charAt(x); }
+var BOOKC = ['#7a2222','#2c3e6b','#3f6b3a','#8a6a2a','#5a2a4a','#6b4423'];
+function isWallish(t){ return 'WwSXMP'.indexOf(t) >= 0 || t === 'F'; }
+function drawWallBase(px,py,x,y){
+  var pal = L.pal;
+  R(px,py,16,16,pal.wall);
+  var below = tile(x,y+1);
+  if (!isWallish(below) && y < ROWS-1){
+    R(px,py+6,16,10,pal.face); R(px,py+6,16,1,pal.faceHi); R(px,py+13,16,1,pal.faceLo);
+  } else {
+    R(px,py+7,16,1,pal.mortar); R(px+((y%2)?4:12),py,1,7,pal.mortar); R(px+((y%2)?10:2),py+8,1,8,pal.mortar);
+  }
+}
+function drawFloorBase(px,py,x,y){
+  var pal = L.pal;
+  if (L.id === 1){
+    R(px,py,16,16,'#5a3b22');
+    for (var r=0;r<4;r++){ R(px, py+r*4+3, 16, 1, '#4a301b'); var off = ((y*4+r)*7)%16; R(px+off, py+r*4, 1, 3, '#4a301b'); }
+    if (hash(x,y)%5===0) R(px+5,py+6,2,1,'#654428');
+  } else {
+    var dark = (x+y)%2 === 0;
+    R(px,py,16,16, dark ? pal.floorA : pal.floorB);
+    R(px,py,16,1,'rgba(255,255,255,.05)');
+    if (hash(x,y)%4===0) R(px+3+hash(y,x)%8,py+4,4,1,'rgba(255,255,255,.07)');
+  }
+}
+function drawChar(px, py, coat, hair, dir, bob, wig, robe){
+  py += bob;
+  R(px+4, py+15, 8, 1, 'rgba(0,0,0,.35)');
+  R(px+5, py+12, 2, 3, '#1a1410'); R(px+9, py+12, 2, 3, '#1a1410');
+  R(px+3, py+7, 10, robe ? 8 : 6, coat); R(px+3, py+12, 10, 1, 'rgba(0,0,0,.25)');
+  R(px+7, py+7, 2, 5, wig ? '#efe3c8' : '#d8c8a8');
+  R(px+4, py+2, 8, 6, '#e0b892');
+  R(px+3, py+1, 10, 3, hair); if (wig){ R(px+2, py+3, 2, 5, hair); R(px+12, py+3, 2, 5, hair); }
+  if (dir !== 'up'){
+    var ex = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+    R(px+6+ex, py+5, 1, 1, '#1a1410'); R(px+9+ex, py+5, 1, 1, '#1a1410');
+  } else { R(px+4, py+2, 8, 4, hair); }
+}
+function drawDoorTile(px,py,t){
+  if (!S.doors[t]){ R(px+1,py,14,16,L.pal.door); R(px+1,py,14,1,'rgba(255,255,255,.15)'); R(px+5,py,1,16,'rgba(0,0,0,.25)'); R(px+10,py,1,16,'rgba(0,0,0,.25)'); R(px+11,py+7,2,2,'#c9a04a'); }
+  else { R(px,py,16,2,'rgba(0,0,0,.45)'); R(px,py+14,16,2,'rgba(0,0,0,.45)'); }
+}
+
+/* ================= Level 1: Entick's house ================= */
+function drawL1(t,px,py,x,y,now){
+  if (t === 'w'){ drawWallBase(px,py,x,y); R(px+4,py+7,8,6,'#c9a04a'); R(px+5,py+8,6,4,'#3a4a5a'); R(px+7,py+9,2,2,'#e0b892'); return true; }
+  if (t === 'S'){
+    drawWallBase(px,py,x,y); R(px+1,py+3,14,13,'#3b2414');
+    for (var s=0;s<2;s++){ for (var b=0;b<6;b++){ var hh = 4 + hash(x*7+b,s)%2; R(px+2+b*2, py+4+s*6+(5-hh), 2, hh, BOOKC[hash(x,b+s*3)%BOOKC.length]); } R(px+1,py+9+s*6,14,1,'#2a180c'); }
+    return true;
+  }
+  if (t === 'F'){
+    drawWallBase(px,py,x,y);
+    var j = (S.stage <= 2 && now < S.knockShakeUntil) ? (Math.floor(now/40)%2 ? 1 : -1) : 0;
+    R(px+2+j,py+1,12,15,'#5b3a1e'); R(px+2+j,py+1,12,1,'#7a5230'); R(px+7+j,py+1,1,15,'#4a2e16'); R(px+11+j,py+8,2,2,'#c9a04a');
+    return true;
+  }
+  if (t === 'X'){
+    drawWallBase(px,py,x,y);
+    R(px+3,py+1,11,15,'#4b3018'); R(px+3,py+4,11,1,'#2a1a0c'); R(px+3,py+11,11,1,'#2a1a0c');
+    R(px+5,py+7,4,4,'#555'); R(px+6,py+8,2,2, S.stage===4 ? '#e8a33d' : '#333');
+    return true;
+  }
+  drawFloorBase(px,py,x,y);
+  if (t === 'c'){ R(px+2,py+5,12,10,'#6b4423'); R(px+2,py+5,12,3,'#7d5230'); R(px+2,py+8,12,1,'#c9a04a'); R(px+7,py+8,2,3,'#c9a04a'); R(px+2,py+14,12,1,'#3a2410'); }
+  else if (t === 'l'){ if (S.stage <= 3){ R(px+3,py+5,4,3,'#efe3c8'); R(px+9,py+9,4,3,'#e2d2ae'); R(px+6,py+11,3,2,'#efe3c8'); R(px+11,py+4,2,2,'#e2d2ae'); } }
+  else if (t === 'b'){ var top = tile(x,y-1) !== 'b'; R(px+1,py,14,16,'#4a2e1a'); R(px+2,py+(top?6:0),12,top?10:15,'#7a2222'); if (top) R(px+3,py+1,10,4,'#e8dcc0'); }
+  else if (t === 't'){ R(px+2,py+7,12,6,'#5e3c1f'); R(px+3,py+13,2,3,'#3a2410'); R(px+11,py+13,2,3,'#3a2410'); R(px+7,py+3,2,4,'#efe3c8'); var fl = Math.floor(now/120)%3; R(px+7,py+1+(fl===1?1:0),2,2,'#e8a33d'); }
+  return true;
+}
+
+/* ================= Level 2: Royal Courts & Whitehall ================= */
+function drawL2(t,px,py,x,y,now){
+  if (t === 'w'){ drawWallBase(px,py,x,y); R(px+4,py+7,8,7,'#c9a04a'); R(px+5,py+8,6,5,'#5a2a2a'); R(px+7,py+9,2,2,'#efe3c8'); R(px+6,py+11,4,2,'#1a1410'); return true; }
+  if (t === 'M'){ // board of institutions
+    drawWallBase(px,py,x,y); R(px+1,py+4,14,11,'#c9a04a'); R(px+2,py+5,12,9,'#1f2a3a');
+    R(px+3,py+6,4,3,'#b8322c'); R(px+9,py+6,4,3,'#3f6b3a'); R(px+3,py+10,4,3,'#2c5aa0'); R(px+9,py+10,4,3,'#efe3c8');
+    return true;
+  }
+  if (t === 'P'){ // cinema poster
+    drawWallBase(px,py,x,y); R(px+3,py+3,10,13,'#e8a33d'); R(px+4,py+4,8,11,'#8e1f1f');
+    R(px+5,py+6,6,1,'#efe3c8'); R(px+5,py+8,6,1,'#efe3c8'); R(px+6,py+11,4,3,'#1a1410'); R(px+7,py+12,2,1,'#efe3c8');
+    return true;
+  }
+  drawFloorBase(px,py,x,y);
+  if (t === 'H'){ // minister's desk with red box
+    R(px+1,py+6,14,7,'#5e3c1f'); R(px+1,py+6,14,1,'#7a5230'); R(px+2,py+13,2,3,'#3a2410'); R(px+12,py+13,2,3,'#3a2410');
+    R(px+3,py+3,7,4,'#a32020'); R(px+3,py+3,7,1,'#c9a04a'); R(px+11,py+4,3,3,'#efe3c8');
+  } else if (t === 'G'){ // GCHQ radio console
+    R(px+1,py+3,14,12,'#2f3b2f'); R(px+1,py+3,14,1,'#4a5a4a'); R(px+3,py+5,5,4,'#111');
+    var on = Math.floor(now/300)%2; R(px+4,py+6,1,1, on?'#7fd17f':'#244024'); R(px+6,py+7,1,1, on?'#244024':'#7fd17f');
+    R(px+10,py+5,3,3,'#c9a04a'); R(px+3,py+11,10,2,'#1a201a'); R(px+5,py+11,1,2,'#e8a33d');
+  } else if (t === 'J'){ // judges' bench
+    R(px,py+4,16,12,'#3b2414'); R(px,py+4,16,2,'#5e3c1f'); R(px+5,py+7,6,6,'#c9a04a'); R(px+6,py+8,4,4,'#8e1f1f'); R(px+7,py+9,2,2,'#c9a04a');
+    if (S.stage === 4){ R(px+2,py+1,2,3,'#7a5230'); }
+  } else if (t === 's'){ // statue
+    R(px+4,py+11,8,5,'#6b6a72'); R(px+5,py+3,6,8,'#9a99a3'); R(px+6,py+1,4,3,'#b0afb8'); R(px+4,py+5,2,4,'#9a99a3'); R(px+10,py+5,2,4,'#9a99a3');
+  } else if (t === 'q'){ // brass lamp
+    R(px+7,py+6,2,9,'#7a5a30'); R(px+5,py+14,6,2,'#5a4020'); R(px+5,py+2,6,5,'#e8c47a'); R(px+6,py+3,4,3,'#fff1c8');
+  }
+  return true;
+}
+
+/* ================= Shared puzzle builders ================= */
+function sortPuzzle(bins, cards, doneHtml){
+  var sel = null, left = cards.length, binEls = [];
+  var cardBox = h('div', {'class':'cards'});
+  shuffle(cards).forEach(function(c){
+    var el = h('button', {'class':'card', type:'button', onclick: function(){
+      if (sel) sel.el.classList.remove('sel');
+      sel = {c:c, el:el}; el.classList.add('sel'); SFX.blip();
+      binEls.forEach(function(b){ b.classList.add('armed'); });
+    }}, c.t);
+    cardBox.appendChild(el);
+  });
+  var binBox = h('div', {'class':'bins'}, bins.map(function(b){
+    var el = h('button', {'class':'bin', type:'button', onclick: function(){
+      if (!sel){ toast('Сначала выберите карточку.'); return; }
+      if (sel.c.b === b.id){
+        el.appendChild(h('span', {'class':'placed'}, sel.c.t)); SFX.page();
+        sel.el.parentNode.removeChild(sel.el); sel = null; left--;
+        binEls.forEach(function(x){ x.classList.remove('armed'); });
+        if (left === 0) solved(doneHtml);
+      } else penalty(PEN_MISTAKE, '«' + sel.c.t + '» — не сюда.', el);
+    }}, h('span', {'class':'bn'}, b.n), h('span', {'class':'bd'}, b.d));
+    binEls.push(el); return el;
+  }));
+  return h('div', {'class':'lock'}, cardBox, binBox);
+}
+function quizPuzzle(items, doneHtml, wrongMsg){
+  var done = 0;
+  return h('div', {'class':'lock'}, items.map(function(a){
+    var opts = h('div', {'class':'opts'}), fin = false, expl = h('div', {'class':'fb good', hidden:true});
+    shuffle([{t:a.right, ok:true}].concat(a.wrong.map(function(t){ return {t:t, ok:false}; }))).forEach(function(o){
+      var b = h('button', {'class':'opt', type:'button', onclick: function(){
+        if (fin) return;
+        if (o.ok){
+          fin = true; b.classList.add('right'); SFX.ok();
+          Array.prototype.forEach.call(opts.querySelectorAll('.opt'), function(x){ if (x !== b) x.disabled = true; });
+          if (a.explain){ expl.hidden = false; expl.innerHTML = a.explain; }
+          if (++done === items.length) solved(doneHtml);
+        } else { b.classList.add('wrong'); b.disabled = true; penalty(PEN_MISTAKE, wrongMsg || 'Неверно.', b); }
+      }}, o.t);
+      opts.appendChild(b);
+    });
+    return h('div', {'class':'arg'}, h('div', {'class':'who'}, a.who), h('p', {'class':'claim'}, a.claim), opts, expl);
+  }));
+}
+function dialPuzzle(dials, doneHtml, btnText){
+  var state = dials.map(function(){ return 0; });
+  var lock = h('div', {'class':'lock'}, dials.map(function(d,i){
+    var v = h('span', {'class':'val'}, d.vals[0]);
+    return h('div', {'class':'dial'},
+      h('div', {'class':'stem'}, d.stem, v),
+      h('button', {'class':'turn', type:'button', 'aria-label':'Повернуть диск', onclick: function(){ state[i] = (state[i]+1) % d.vals.length; v.textContent = d.vals[state[i]]; tone(300 + i*60, 'square', 0.03, 0.05); }}, '↻'));
+  }));
+  var open = h('button', {'class':'btn', type:'button', onclick: function(){
+    var wrong = 0; dials.forEach(function(d,i){ if (state[i] !== d.ok) wrong++; });
+    if (!wrong){ open.disabled = true; solved(doneHtml); }
+    else penalty(PEN_MISTAKE, 'Не поддаётся. Неверных дисков: ' + wrong + '.', lock);
+  }}, btnText);
+  return h('div', {'class':'lock'}, lock, h('div', {'class':'btn-row'}, open));
+}
+
+/* ---- Level 1 puzzles ---- */
+var BOOKS = [
+  {t:'Великая хартия вольностей', y:'1215', txt:'«Ни один свободный человек не будет схвачен или заключён в тюрьму... иначе как по законному приговору равных ему и по закону страны» (гл. 39).', why:'Хартия защищает Энтика, а не посыльных: она требует законного основания для ареста.'},
+  {t:'Licensing of the Press Act', y:'1662', txt:'Даёт государственным секретарям право выдавать ордера на обыск и изъятие неразрешённых печатных изданий.', why:'Ловушка. Этот закон утратил силу в 1695 году, и полномочие исчезло вместе с ним.'},
+  {t:'Билль о правах', y:'1689', txt:'Приостановление или отмена действия законов властью короны без согласия Парламента незаконны.', why:'Билль ограничивает корону, но не даёт министрам права на обыск.'},
+  {t:'Habeas Corpus Act', y:'1679', txt:'Арестованный вправе требовать доставки в суд для проверки законности задержания.', why:'Это гарантия задержанного, а не полномочие власти.'},
+  {t:'Hale, «Pleas of the Crown»', y:'1736', txt:'Мировой судья может выдать ордер на обыск для поиска краденых вещей, если о них заявлено под присягой.', why:'Речь о мировом судье и краденых вещах. Госсекретарь не мировой судья, а бумаги Энтика не краденые.'},
+  {t:'Записки канцелярии госсекретаря', y:'1688–1762', txt:'Перечень общих ордеров, выданных госсекретарями за последние 70 лет. Ни один не был оспорен в суде.', why:'Это практика, а не закон. Давность практики не делает её законной.'}
+];
+function booksPuzzle(){
+  var reader = h('div', {'class':'page', hidden:true});
+  var read = {}, nRead = 0;
+  var shelf = h('div', {'class':'shelf'}, BOOKS.map(function(b,i){
+    var btn = h('button', {'class':'book', type:'button', onclick: function(){
+      if (!read[i]){ read[i] = true; nRead++; }
+      btn.classList.add('read'); SFX.page();
+      reader.hidden = false; reader.innerHTML = '';
+      var claim = h('button', {'class':'btn ghost', type:'button', onclick: function(){
+        penalty(PEN_MISTAKE, 'В этой книге нет основания для обыска.', reader);
+        reader.appendChild(h('div', {'class':'fb bad', html:'<b>Не то.</b> ' + b.why}));
+        claim.disabled = true;
+      }}, 'Вот основание для обыска');
+      reader.appendChild(h('div', {'class':'eyebrow'}, b.t + ' · ' + b.y));
+      reader.appendChild(h('p', {'class':'q'}, b.txt));
+      reader.appendChild(h('div', {'class':'btn-row'}, claim));
+    }}, h('span', {'class':'t'}, b.t), h('span', {'class':'y'}, b.y));
+    return btn;
+  }));
+  var none = h('button', {'class':'btn', type:'button', onclick: function(){
+    if (nRead < 3){ toast('Сначала откройте хотя бы три книги.'); return; }
+    none.disabled = true;
+    solved('<b>Верно: основания нет.</b> Так рассуждал лорд Кэмден: всякое вторжение в чужое владение — нарушение (trespass), и тот, кто вторгся, должен указать норму права. Её нет ни в законах, ни в общем праве.');
+  }}, 'В книгах такого основания нет');
+  return h('div', {'class':'lock'}, shelf, reader, h('div', {'class':'btn-row'}, none));
+}
+var QUOTE = ['If this is law','it would be found in our books,','but no such law ever existed in this country;','our law holds the property of every man so sacred,','that no man can set his foot upon his neighbour’s close without his leave.'];
+function quotePuzzle(){
+  var pos = 0;
+  var out = h('div', {'class':'assembled'}, h('span', {'class':'ph'}, 'Нажимайте на обрывки в правильном порядке...'));
+  var frags = h('div', {'class':'frags'});
+  shuffle(QUOTE.map(function(t,i){ return {t:t, i:i}; })).forEach(function(f){
+    var b = h('button', {'class':'frag', type:'button', onclick: function(){
+      if (f.i === pos){
+        if (pos === 0) out.innerHTML = '';
+        out.appendChild(document.createTextNode((pos ? ' ' : '') + f.t));
+        b.disabled = true; pos++; SFX.page();
+        if (pos === QUOTE.length) solved('<b>Цитата собрана.</b> «Если бы это было законом, его нашли бы в наших книгах, но такого закона в этой стране никогда не было. Наше право считает собственность каждого столь священной, что никто не вправе ступить на землю соседа без его разрешения». Отсюда принцип: власть действует только на основании нормы права.');
+      } else penalty(PEN_MISTAKE, 'Этот обрывок идёт позже.', b);
+    }}, f.t);
+    frags.appendChild(b);
+  });
+  return h('div', {'class':'lock'}, out, frags);
+}
+
+/* ================= Levels ================= */
+var LEVELS = [
+ {
+  id:1, name:'Глава I. Дом Энтика', date:'11 ноября 1762 · Стэпни', meter:'Посыльные обыскивают дом',
+  map:[
+    'WWWWWWWWWWWWWWWWWWWW',
+    'WSSSSWWwWWWWWWwWWWWW',
+    'W....W......W.....bW',
+    'W....W..c...W.....bW',
+    'W.e..1......2..l...X',
+    'W....W......W......W',
+    'Wt...W......W.....tW',
+    'W....W......W......W',
+    'WWWWWWWWWFWWWWWWWWWW'
+  ],
+  start:[3,5], walk:'.l', lights:'t', shadeA:0.6, doorsAfter:{'1':0,'2':2},
+  stageTiles:['S','c','F','l','X'],
+  pal:{wall:'#241911', face:'#3e2c1d', faceHi:'#5a4330', faceLo:'#2e2015', mortar:'#2f2218', door:'#5b3a1e'},
+  draw:drawL1,
+  npc:{ch:'e', name:'Джон Энтик', coat:'#2c3e6b', hair:'#efe3c8', wig:true, robe:false, lines:[
+    [['Джон Энтик','Слышите? Это посыльные графа Галифакса! У них ордер на меня и все мои бумаги.'],['Джон Энтик','Если у них есть такое право, оно должно быть записано в законе. Осмотрите книжный шкаф у стены!']],
+    [['Джон Энтик','Дверь в зал открыта. В сундуке лежат бумаги из вашего будущего, я в них ничего не понимаю.'],['Джон Энтик','Разложите их по источникам права, иначе замок не откроется.']],
+    [['Джон Энтик','Каррингтон стучит в парадную дверь зала. Ответьте ему так, как ответил бы суд!']],
+    [['Джон Энтик','Спальня открыта. Там на полу обрывки какого-то письма из будущего.']],
+    [['Джон Энтик','Чёрный ход справа в спальне. Замок кодовый — вспомните всё, что узнали.']]
+  ]},
+  flavor:{ w:['Портрет','Портрет короля Георга III. Король далеко, а его посыльные — внизу.'], b:['Кровать','Кровать Энтика. Прятаться под ней бесполезно.'], t:['Свеча','Свеча догорает. Времени мало.'] },
+  intro:{ lead:'Вы — юрист из будущего, оказавшийся в доме публициста Джона Энтика. Четверо королевских посыльных во главе с Натаном Каррингтоном пришли с ордером государственного секретаря графа Галифакса. Им нужен Энтик «вместе с его книгами и бумагами».',
+          sub:'Пройдите через кабинет, зал и спальню и откройте пять замков. Ошибки и подсказки приближают посыльных.' },
+  caught:['Посыльные нашли бумаги','Каррингтон уносит рукописи Энтика. Но в 1765 году суд всё равно признает обыск незаконным.'],
+  finale:{ date:'1765 · Суд общих тяжб', title:'Энтик свободен', lead:'Вы выбрались из дома, а через три года лорд Кэмден признал обыск незаконным.' },
+  stages:[
+   {eyebrow:'Замок I · Книжный шкаф', title:'Найдите основание в книгах', goal:'Осмотрите книжный шкаф в кабинете.',
+    story:'Каррингтон кричит снизу, что ордер законен. Если это закон, он должен быть записан. В шкафу шесть книг.',
+    task:'Найдите норму, которая разрешает государственному секретарю обыскивать дома и изымать бумаги. Если такой нормы нет, скажите об этом.',
+    hint:'Проверьте, действует ли ещё закон о печати 1662 года. И помните: практика — не закон.', body:booksPuzzle,
+    after:[['Джон Энтик','Значит, права у них нет! Дверь в зал открылась. Там стоит мой сундук.']]},
+   {eyebrow:'Замок II · Сундук из будущего', title:'Разберите источники', goal:'Откройте сундук в зале.',
+    story:'В сундуке вперемешку лежат бумаги из разных веков. Замок откроется, только когда каждая окажется в своём отделении.',
+    task:'Выберите карточку, затем отделение, к которому относится этот источник английской конституции.',
+    hint:'Конституционные соглашения — неписаные правила политической практики. Суд не может принудить к их исполнению.',
+    body:function(){ return sortPuzzle(
+      [{id:'st', n:'Закон Парламента', d:'statute'},{id:'cl', n:'Общее право', d:'common law, решения судов'},{id:'pr', n:'Прерогатива', d:'royal prerogative'},{id:'cv', n:'Конституционное соглашение', d:'convention'}],
+      [{t:'Билль о правах 1689', b:'st'},{t:'Parliament Act 1911', b:'st'},{t:'Entick v Carrington (1765)', b:'cl'},{t:'Тест Wednesbury (1947)', b:'cl'},{t:'Заключение международных договоров', b:'pr'},{t:'Помилование осуждённого', b:'pr'},{t:'Монарх никогда не отказывает в королевской санкции', b:'cv'},{t:'Премьер-министр — лидер партии большинства в Палате общин', b:'cv'}],
+      '<b>Все источники разобраны.</b> Английская конституция не записана в одном документе. Её нормы рассеяны по законам Парламента, решениям судов, прерогативе и соглашениям. Соглашения суды признают, но принудить к их исполнению не могут.'); },
+    after:[['Джон Энтик','Слышите? Каррингтон колотит в парадную дверь. Подойдите к ней и ответьте ему.']]},
+   {eyebrow:'Замок III · Спор через дверь', title:'Отбейте доводы посыльных', goal:'Подойдите к парадной двери внизу зала.',
+    story:'Каррингтон приводит три довода, почему он вправе войти. Ответьте так, как через три года ответит суд.',
+    task:'Для каждого довода выберите ответ лорда Кэмдена.',
+    hint:'У Кэмдена один ответ на всё: покажите норму права. Ни приказ, ни давность, ни необходимость её не заменяют.',
+    body:function(){ return quizPuzzle([
+      {who:'Довод 1 · Каррингтон', claim:'«Ордер подписал государственный секретарь, королевский министр. Мы лишь исполняем приказ».',
+       right:'Госсекретарь не судья. Ни один закон не даёт ему права выдавать такие ордера, а приказ начальника не оправдывает нарушение.',
+       wrong:['Ордер действителен: министр короны вправе приказывать от имени короля.','Ордер действителен, если посыльные действовали добросовестно.']},
+      {who:'Довод 2 · Каррингтон', claim:'«Такие ордера выдают уже 70 лет, и никто их ни разу не оспорил».',
+       right:'Давность практики не превращает её в закон. Незаконное не становится законным оттого, что его никто не оспорил.',
+       wrong:['Практика старше 50 лет приобретает силу обычая и становится законом.','Практика законна, раз её молчаливо одобрил Парламент.']},
+      {who:'Довод 3 · Каррингтон', claim:'«Обыск необходим ради безопасности государства от крамольных памфлетов».',
+       right:'Общее право не знает довода о государственной необходимости. Если власти нужны такие полномочия, их должен дать закон.',
+       wrong:['Довод верен: безопасность государства выше права собственности.','Довод верен, если обыск проведён днём и при свидетелях.']}
+     ], '<b>Все три довода отбиты.</b> В 1765 году суд общих тяжб под председательством лорда Кэмдена отверг их. Присяжные присудили Энтику <b>£300</b> убытков. Запомните эту сумму.', 'Лорд Кэмден с этим бы не согласился.'); },
+    after:[['Каррингтон','...Ладно, мы пошлём за подкреплением!'],['Джон Энтик','Это ненадолго. Дверь в спальню открыта — бегите туда!']]},
+   {eyebrow:'Замок IV · Разорванное письмо', title:'Соберите слова судьи', goal:'Поднимите обрывки письма в спальне.',
+    story:'На полу — обрывки письма из будущего с самыми известными словами лорда Кэмдена.',
+    task:'Нажимайте на обрывки в правильном порядке.', hint:'Начало: «If this is law...». Конец — о соседской земле.', body:quotePuzzle,
+    after:[['Вы','Теперь к чёрному ходу справа. Замок кодовый.']]},
+   {eyebrow:'Замок V · Чёрный ход', title:'Последний замок', goal:'Откройте чёрный ход в правой стене спальни.',
+    story:'Чёрный ход заперт на кодовый замок с четырьмя дисками. Его откроет тот, кто понял урок этого дома.',
+    task:'Поверните диски так, чтобы получились верные утверждения, и откройте дверь.',
+    hint:'Вспомните итог третьего замка — там названа сумма.',
+    body:function(){ return dialPuzzle([
+      {stem:'Частное лицо может делать всё, что...', vals:['разрешено королём','не запрещено законом','одобрено соседями','угодно Парламенту'], ok:1},
+      {stem:'Орган власти может делать только то, что...', vals:['необходимо государству','разрешено законом','делалось всегда','приказал министр'], ok:1},
+      {stem:'Должностное лицо, нарушившее закон, отвечает...', vals:['только перед королём','перед своим министром','перед обычным судом, как любой человек','ни перед кем'], ok:2},
+      {stem:'Сумма убытков, присуждённая Энтику (£)', vals:['30','100','300','3000'], ok:2}
+     ], '<b>Дверь открыта.</b> Это верховенство права в понимании Дайси: никто не наказывается иначе как за нарушение закона, установленное обычным судом. Все, включая министров, равны перед обычным правом.', 'Открыть дверь'); },
+    after:[]}
+  ]
+ },
+ {
+  id:2, name:'Глава II. Королевские суды', date:'Лондон · Стрэнд и Уайтхолл', meter:'Очередь жалоб переполняется',
+  map:[
+    'WWWWWWWWWWWWWWWWWWWW',
+    'WWMWWWWwWWWWWWWPWWWW',
+    'Ws..sW......W...J..W',
+    'W....W..H...W......W',
+    'W.k..1......2......W',
+    'W....W......W......W',
+    'Wq..qW...G..Wq....qW',
+    'W....W......W......W',
+    'WWWWWWWWWWWWWWWWWWWW'
+  ],
+  start:[3,5], walk:'.', lights:'q', shadeA:0.32, doorsAfter:{'1':0,'2':2},
+  stageTiles:['M','H','G','P','J'],
+  pal:{wall:'#22222b', face:'#3d3c48', faceHi:'#5a5966', faceLo:'#2c2b35', mortar:'#2d2d38', door:'#4a3020', floorA:'#5c5b63', floorB:'#6e6d76'},
+  draw:drawL2,
+  npc:{ch:'k', name:'Клерк суда', coat:'#1a1a22', hair:'#efe3c8', wig:true, robe:true, lines:[
+    [['Клерк суда','Добро пожаловать, судья! Сегодня ваш первый день в Административном суде.'],['Клерк суда','Прежде чем слушать дела, вспомните, кто есть кто в государстве. Карта институтов висит на стене слева.']],
+    [['Клерк суда','Первое дело — из министерства внутренних дел. Документы на столе министра с красным ящиком.']],
+    [['Клерк суда','Профсоюзы спецслужбы жалуются на премьер-министра. Материалы у радиопульта GCHQ.']],
+    [['Клерк суда','В соседнем зале — жалоба владельцев кинотеатра. Начните с афиши на стене.']],
+    [['Клерк суда','Все дела изучены. Займите место за судейской скамьёй и вынесите итоговое решение.']]
+  ]},
+  flavor:{ w:['Портрет','Портрет лорд-канцлера в парике. До 2005 года он был и министром, и судьёй, и спикером лордов.'], s:['Статуя','Статуя Фемиды. Повязка на глазах — суд не смотрит, кто перед ним.'], q:['Лампа','Латунная лампа. Здесь работают допоздна: очередь жалоб длинная.'] },
+  intro:{ lead:'Вы — новый судья Административного суда (Administrative Court) в Лондоне. Сегодня на столе четыре жалобы на власть: от министра внутренних дел до муниципалитета.',
+          sub:'Пройдите вестибюль, кабинет дел и кинозал, изучите материалы и вынесите итоговое решение. Ошибки и подсказки удлиняют очередь жалоб.' },
+  caught:['Очередь жалоб переполнилась','Суд не справился с нагрузкой. Но правосудие не останавливается.'],
+  finale:{ date:'Административный суд · Лондон', title:'Решение вынесено', lead:'Вы разобрали жалобы на министра, премьер-министра и муниципалитет и применили три основания судебного контроля.' },
+  stages:[
+   {eyebrow:'Дело I · Вестибюль', title:'Кто есть кто в государстве', goal:'Изучите карту институтов в вестибюле.',
+    story:'Карта на стене делит государство на четыре института. Таблички с их функциями кто-то перепутал.',
+    task:'Выберите табличку, затем институт, которому принадлежит эта функция.',
+    hint:'Корона действует по совету министров. Правительство отвечает перед Палатой общин. Отложить закон на год может Палата лордов.',
+    body:function(){ return sortPuzzle(
+      [{id:'cr', n:'Корона', d:'монарх, the Crown'},{id:'pa', n:'Парламент', d:'Crown in Parliament'},{id:'go', n:'Правительство', d:'the Executive'},{id:'co', n:'Суды', d:'the Judiciary'}],
+      [{t:'Королевская санкция на законы', b:'cr'},{t:'Глава государства, действующий по совету министров', b:'cr'},
+       {t:'Принятие законов и вотум недоверия', b:'pa'},{t:'Отложить законопроект на год по Parliament Act 1949', b:'pa'},
+       {t:'Министерская ответственность перед Палатой общин', b:'go'},{t:'Использование прерогативы: договоры, оборона', b:'go'},
+       {t:'Judicial review решений министров', b:'co'},{t:'С 2009 года — Верховный суд вместо Палаты лордов', b:'co'}],
+      '<b>Карта восстановлена.</b> Прерогатива формально принадлежит Короне, но осуществляют её министры. С Constitutional Reform Act 2005 суды отделены от Парламента: в 2009 году начал работу Верховный суд.'); },
+    after:[['Клерк суда','Отлично. Дверь в кабинет дел открыта.']]},
+   {eyebrow:'Дело II · Стол министра', title:'M v Home Office (1993)', goal:'Изучите дело на столе министра с красным ящиком.',
+    story:'1 мая 1991 года. Судья Гарленд запретил высылать учителя из Заира, просившего убежища. M. всё равно посадили на самолёт. Ночью судья вынес injunction: вернуть его. Министр Кеннет Бейкер по совету юристов отменил возвращение.',
+    task:'Ответьте на три вопроса так, как ответила Палата лордов.',
+    hint:'Запрет s.21 Crown Proceedings Act 1947 касается гражданских дел, а не judicial review. Вину признали за должностью, а не за человеком.',
+    body:function(){ return quizPuzzle([
+      {who:'Вопрос 1', claim:'Может ли суд в judicial review вынести injunction против министра?',
+       right:'Да. Запрет s.21 Crown Proceedings Act 1947 касается гражданских дел, а в judicial review суд вправе выносить injunctions против министров.',
+       wrong:['Нет. Корона и её министры полностью неподсудны.','Только с согласия самого министра.']},
+      {who:'Вопрос 2', claim:'Кто виновен в неуважении к суду (contempt of court)?',
+       right:'Государственный секретарь по внутренним делам в официальном качестве, как должность.',
+       wrong:['Кеннет Бейкер лично, с тюремным сроком.','Никто: министр действовал по совету юристов.']},
+      {who:'Вопрос 3', claim:'Почему, по словам лорда Темплмана, иной вывод недопустим?',
+       right:'Тогда исполнительная власть подчинялась бы закону из милости, а не по необходимости.',
+       wrong:['Тогда суды стали бы выше Парламента.','Тогда министров пришлось бы избирать.']}
+     ], '<b>Дело решено, как в 1993 году.</b> Палата лордов (основное мнение — лорд Вулф) признала: исполнительная власть обязана исполнять решения суда. Это Entick v Carrington XX века: под законом стоит не только посыльный, но и министр.', 'Палата лордов решила иначе.'); },
+    after:[['Клерк суда','Следующее дело — у радиопульта GCHQ.']]},
+   {eyebrow:'Дело III · Пульт GCHQ', title:'Три основания лорда Диплока', goal:'Изучите материалы у радиопульта GCHQ.',
+    story:'1984 год. Премьер-министр прерогативой запретила сотрудникам GCHQ состоять в профсоюзах, не проведя консультаций. Лорд Диплок свёл основания judicial review к трём.',
+    task:'Распределите жалобы по основаниям судебного контроля.',
+    hint:'Illegality — орган вышел за рамки закона или учёл не то. Irrationality — решение абсурдно. Procedural impropriety — нарушен порядок или справедливость.',
+    body:function(){ return sortPuzzle(
+      [{id:'il', n:'Illegality', d:'незаконность'},{id:'ir', n:'Irrationality', d:'иррациональность, Wednesbury'},{id:'pi', n:'Procedural impropriety', d:'процедурное нарушение'}],
+      [{t:'Министр закрыл школу по закону, который разрешает закрывать только больницы', b:'il'},
+       {t:'Орган учёл политические взгляды заявителя, хотя закон велит смотреть только на санитарные нормы', b:'il'},
+       {t:'Учительницу уволили за рыжий цвет волос', b:'ir'},
+       {t:'Штраф £10 000 за неправильный цвет почтового ящика', b:'ir'},
+       {t:'Профсоюзы GCHQ не выслушали, хотя консультации проводились десятилетиями', b:'pi'},
+       {t:'Лицензию выдавал совладелец фирмы-конкурента заявителя', b:'pi'}],
+      '<b>Основания распределены.</b> В деле GCHQ профсоюзы доказали нарушение процедуры: у них было обоснованное ожидание консультаций. Но Палата лордов отклонила жалобу: национальная безопасность — вопрос, где последнее слово за правительством. Главное — прерогатива впервые признана подконтрольной суду.'); },
+    after:[['Клерк суда','Дверь в кинозал открыта. Там жалоба кинотеатра.']]},
+   {eyebrow:'Дело IV · Кинозал', title:'Тест Wednesbury', goal:'Осмотрите афишу кинотеатра в правом зале.',
+    story:'1947 год. Муниципалитет Уэнсбери разрешил кинотеатру работать по воскресеньям, но запретил пускать детей до 15 лет. Лорд Грин сформулировал тест неразумности.',
+    task:'Решите, отменит ли суд каждое из решений.',
+    hint:'Суд проверяет законность, а не целесообразность. Отменяется только решение, которого не принял бы ни один разумный орган.',
+    body:function(){ return quizPuzzle([
+      {who:'Жалоба 1 · Associated Provincial Picture Houses', claim:'Запрет пускать детей до 15 лет на воскресные сеансы.',
+       right:'Не отменит: забота о детях — допустимый мотив, решение в пределах усмотрения органа.',
+       wrong:['Отменит: условие явно неразумно.','Отменит: суд вправе выбрать лучшее решение сам.'],
+       explain:'Так и решил Апелляционный суд в 1947 году. Суд может считать условие неумным, но это не делает его незаконным.'},
+      {who:'Жалоба 2 · Пример лорда Грина', claim:'Учительницу уволили за рыжий цвет волос.',
+       right:'Отменит: решение настолько абсурдно, что ни один разумный орган не принял бы его.',
+       wrong:['Не отменит: кадровые решения не проверяются судом.','Не отменит: работодатель свободен в выборе.'],
+       explain:'Этот пример из Short v Poole Corporation (1926) лорд Грин привёл как образец Wednesbury unreasonableness.'},
+      {who:'Жалоба 3 · Жильцы против кинотеатра', claim:'Совет ограничил воскресные сеансы до 22:00, чтобы не мешать жильцам.',
+       right:'Не отменит: ограничение разумно связано с целью полномочия.',
+       wrong:['Отменит: любое ограничение бизнеса незаконно.','Отменит: время сеансов должен решать Парламент.'],
+       explain:'Высокий порог Wednesbury защищает усмотрение органа, которому Парламент доверил решение.'}
+     ], '<b>Тест применён.</b> Двухступенчатый тест лорда Грина: учёл ли орган нужные обстоятельства и не учёл ли посторонние; не пришёл ли к выводу, к которому не пришёл бы ни один разумный орган. Суд контролирует законность, а не целесообразность (legality, not merits).', 'Суд решил бы иначе.'); },
+    after:[['Клерк суда','Все дела изучены. Судейская скамья в правом зале ждёт вас.']]},
+   {eyebrow:'Итог · Судейская скамья', title:'Итоговое решение', goal:'Займите место за судейской скамьёй.',
+    story:'Пора огласить принципы, на которых вы решали сегодняшние дела.',
+    task:'Поверните диски так, чтобы получились верные утверждения, и огласите решение.',
+    hint:'Вспомните: законность, а не целесообразность; прерогатива подконтрольна, если вопрос подсуден; министр отвечает за contempt как должность.',
+    body:function(){ return dialPuzzle([
+      {stem:'В judicial review суд проверяет...', vals:['целесообразность решения','законность решения','популярность решения','политическую мудрость'], ok:1},
+      {stem:'Прерогатива после GCHQ...', vals:['никогда не проверяется судом','проверяется, если вопрос подсуден','проверяется только Парламентом','отменена'], ok:1},
+      {stem:'Министр, нарушивший injunction...', vals:['неподсуден','может быть признан виновным в contempt','отвечает только перед королём','отвечает только на выборах'], ok:1},
+      {stem:'Суд, признавший решение незаконным, выносит...', vals:['вотум недоверия','королевскую санкцию','quashing order','вердикт присяжных'], ok:2}
+     ], '<b>Решение оглашено.</b> Три механизма контроля дополняют друг друга: политический (Парламент), административный (омбудсмен, трибуналы) и судебный (judicial review). Суды не ставят себя выше Парламента — они следят, чтобы исполнительная власть оставалась в пределах закона.', 'Огласить решение'); },
+    after:[]}
+  ]
+ }
+];
+var STAGES;
+
+/* ================= State ================= */
+function startLevel(i){
+  L = LEVELS[i]; STAGES = L.stages; tileCache = {};
+  S = { level:i, stage:0, danger:0, mistakes:0, hints:0, hintUsed:{}, start:Date.now(), doors:{'1':false,'2':false}, mode:'intro', lastTick:Date.now(), nextKnock:0, nextCrackle:0, knockShakeUntil:0 };
+  P = { x:L.start[0], y:L.start[1], fx:L.start[0], fy:L.start[1], tx:L.start[0], ty:L.start[1], dir:'down', moving:false, t:0 };
+  $('topDate').textContent = L.date; $('meterLbl').textContent = L.meter;
+  updateHud();
+}
+function updateHud(){
+  var seals = $('seals'); seals.innerHTML = '';
+  ['I','II','III','IV','V'].forEach(function(r,i){
+    seals.appendChild(h('span', {'class':'seal' + (i < S.stage ? ' done' : i === S.stage ? ' now' : '')}, r));
+  });
+  $('fill').style.width = S.danger + '%';
+  $('pct').textContent = S.danger + '%';
+  $('goalTxt').textContent = S.stage < STAGES.length ? STAGES[S.stage].goal : '';
+}
+function penalty(amount, msg, el){
+  S.danger = Math.min(100, S.danger + amount);
+  if (amount === PEN_MISTAKE){ S.mistakes++; SFX.bad(); }
+  if (el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+  updateHud();
+  if (msg) toast(msg);
+  if (S.danger >= 100) setTimeout(caught, 700);
+}
+function solid(x,y){
+  var t = tile(x,y);
+  if (t === '1' || t === '2') return !S.doors[t];
+  return L.walk.indexOf(t) < 0;
+}
+var DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+
+/* ================= Dialog ================= */
+var dlgQueue = [], dlgDone = null;
+function say(lines, done){ dlgQueue = lines.slice(); dlgDone = done || null; nextLine(); }
+function nextLine(){
+  if (!dlgQueue.length){ $('dlg').hidden = true; if (S.mode === 'dialog') S.mode = 'play'; var d = dlgDone; dlgDone = null; if (d) d(); return; }
+  var l = dlgQueue.shift(); SFX.blip();
+  $('dlgWho').textContent = l[0]; $('dlgTxt').textContent = l[1];
+  $('dlg').hidden = false; S.mode = 'dialog';
+}
+$('dlg').addEventListener('click', function(){ if (S.mode === 'dialog') nextLine(); });
+
+/* ================= Interaction ================= */
+function npcLines(){ var ls = L.npc.lines; return ls[Math.min(S.stage, ls.length-1)]; }
+function targetTile(){
+  var d = DIRS[P.dir], cands = [[P.x+d[0], P.y+d[1]]];
+  ['up','down','left','right'].forEach(function(k){ cands.push([P.x+DIRS[k][0], P.y+DIRS[k][1]]); });
+  cands.push([P.x, P.y]);
+  var best = null;
+  for (var i=0;i<cands.length;i++){
+    var t = tile(cands[i][0], cands[i][1]);
+    if (L.stageTiles.indexOf(t) === S.stage) return t;
+    if (!best && (L.stageTiles.indexOf(t) >= 0 || t === L.npc.ch || t === '1' || t === '2' || L.flavor[t])) best = t;
+  }
+  return best;
+}
+function interact(){
+  if (S.mode === 'dialog'){ nextLine(); return; }
+  if (S.mode !== 'play' || P.moving) return;
+  var t = targetTile();
+  if (!t){ toast('Здесь ничего нет. Подойдите к предмету с золотой меткой.'); return; }
+  var si = L.stageTiles.indexOf(t);
+  if (si >= 0){
+    if (si === S.stage){ openStage(si); return; }
+    if (si < S.stage){ say([['Вы','Здесь всё уже сделано.']]); return; }
+    say([['Вы','Пока рано. ' + STAGES[S.stage].goal]]); return;
+  }
+  if (t === L.npc.ch){ say(npcLines()); return; }
+  if (t === '1' || t === '2'){ say([['Вы','Дверь заперта. ' + STAGES[S.stage].goal]]); return; }
+  if (L.flavor[t]) say([L.flavor[t]]);
+}
+
+/* ================= Movement & input ================= */
+var held = [];
+function press(d){ if (held.indexOf(d) < 0) held.push(d); }
+function release(d){ var i = held.indexOf(d); if (i >= 0) held.splice(i,1); }
+var KEYS = { ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right' };
+document.addEventListener('keydown', function(e){
+  if (S.mode === 'modal' || S.mode === 'screen') return;
+  var d = KEYS[e.code] || KEYS[e.key];
+  if (d){ e.preventDefault(); press(d); return; }
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE' || e.key === ' ' || e.key === 'e' || e.key === 'у'){ e.preventDefault(); if (!e.repeat) interact(); }
+});
+document.addEventListener('keyup', function(e){ var d = KEYS[e.code] || KEYS[e.key]; if (d) release(d); });
+window.addEventListener('blur', function(){ held = []; });
+
+Array.prototype.forEach.call(document.querySelectorAll('.dpad button'), function(b){
+  var d = b.getAttribute('data-d');
+  function on(e){ e.preventDefault(); audioInit(); b.classList.add('on'); press(d); if (S.mode === 'dialog') nextLine(); }
+  function off(e){ if (e) e.preventDefault(); b.classList.remove('on'); release(d); }
+  b.addEventListener('touchstart', on, {passive:false});
+  b.addEventListener('touchend', off, {passive:false});
+  b.addEventListener('touchcancel', off, {passive:false});
+  b.addEventListener('mousedown', on);
+  b.addEventListener('mouseup', off);
+  b.addEventListener('mouseleave', function(){ b.classList.remove('on'); release(d); });
+});
+var act = $('actBtn'), actTouched = 0;
+act.addEventListener('touchstart', function(e){ e.preventDefault(); audioInit(); actTouched = Date.now(); interact(); }, {passive:false});
+act.addEventListener('click', function(){ if (Date.now() - actTouched < 600) return; interact(); });
+$('hintBtn').addEventListener('click', function(){
+  if (S.mode === 'screen' || S.stage >= STAGES.length) return;
+  if (!S.hintUsed[S.stage]){ S.hintUsed[S.stage] = true; S.hints++; penalty(PEN_HINT); }
+  if (S.mode === 'modal'){ var hb = $('hintbox'); if (hb){ hb.hidden = false; hb.textContent = 'Подсказка: ' + STAGES[S.stage].hint; } return; }
+  say([['Подсказка', STAGES[S.stage].hint]]);
+});
+
+var STEP_MS = 150;
+function tryMove(now){
+  if (P.moving || S.mode !== 'play' || !held.length) return;
+  var d = held[held.length-1]; P.dir = d;
+  var nx = P.x + DIRS[d][0], ny = P.y + DIRS[d][1];
+  if (solid(nx, ny)) return;
+  P.fx = P.x; P.fy = P.y; P.tx = nx; P.ty = ny; P.moving = true; P.t = now; SFX.step();
+}
+function stepMove(now){ if (P.moving && now - P.t >= STEP_MS){ P.x = P.tx; P.y = P.ty; P.moving = false; } }
+function playerPos(now){
+  if (!P.moving) return [P.x, P.y];
+  var k = Math.min(1, (now - P.t) / STEP_MS);
+  return [P.fx + (P.tx-P.fx)*k, P.fy + (P.ty-P.fy)*k];
+}
+
+/* ================= Render ================= */
+var tileCache = {};
+function findTile(c){ if (tileCache[c]) return tileCache[c]; for (var y=0;y<ROWS;y++){ var x = L.map[y].indexOf(c); if (x>=0) return (tileCache[c] = [x,y]); } return [0,0]; }
+function forEachTile(c, fn){ for (var y=0;y<ROWS;y++) for (var x=0;x<COLS;x++) if (L.map[y].charAt(x)===c) fn(x,y); }
+function light(x,y,r,a){
+  var g = sctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,'rgba(0,0,0,'+a+')'); g.addColorStop(.6,'rgba(0,0,0,'+(a*.6)+')'); g.addColorStop(1,'rgba(0,0,0,0)');
+  sctx.fillStyle = g; sctx.fillRect(x-r,y-r,r*2,r*2);
+}
+function draw(now){
+  ctx.setTransform(SCALE,0,0,SCALE,0,0);
+  ctx.imageSmoothingEnabled = false;
+  var x, y, t, px, py;
+  for (y=0;y<ROWS;y++) for (x=0;x<COLS;x++){
+    t = tile(x,y); px = x*TS; py = y*TS;
+    if (t === 'W'){ drawWallBase(px,py,x,y); continue; }
+    if (t === '.' || t === L.npc.ch){ drawFloorBase(px,py,x,y); continue; }
+    if (t === '1' || t === '2'){ drawFloorBase(px,py,x,y); drawDoorTile(px,py,t); continue; }
+    L.draw(t,px,py,x,y,now);
+  }
+  var ep = findTile(L.npc.ch);
+  drawChar(ep[0]*TS, ep[1]*TS, L.npc.coat, L.npc.hair, 'down', Math.floor(now/600)%2, L.npc.wig, L.npc.robe);
+  var pp = playerPos(now);
+  var bob = P.moving ? (Math.floor(now/80)%2) : 0;
+  drawChar(Math.round(pp[0]*TS), Math.round(pp[1]*TS), L.id === 1 ? '#3f6b3a' : '#1a1a22', '#2b1d12', P.dir, -bob, L.id === 2, L.id === 2);
+  if (S.stage < L.stageTiles.length){
+    var ot = findTile(L.stageTiles[S.stage]);
+    var my = ot[1]*TS - 6 + Math.round(Math.sin(now/220)*2), mx = ot[0]*TS + 6;
+    if (my < 1) my = ot[1]*TS + 1 + Math.round(Math.sin(now/220)*2);
+    R(mx+1, my, 2, 1, '#e8a33d'); R(mx, my+1, 4, 2, '#e8a33d'); R(mx+1, my+3, 2, 1, '#e8a33d');
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  sctx.globalCompositeOperation = 'source-over';
+  sctx.clearRect(0,0,shade.width,shade.height);
+  sctx.fillStyle = 'rgba(8,5,3,' + L.shadeA + ')'; sctx.fillRect(0,0,shade.width,shade.height);
+  sctx.globalCompositeOperation = 'destination-out';
+  light((pp[0]*TS+8)*SCALE, (pp[1]*TS+8)*SCALE, 70*SCALE, 1);
+  forEachTile(L.lights, function(x,y){ light((x*TS+8)*SCALE, (y*TS+4)*SCALE, (46 + Math.sin(now/170+x)*2)*SCALE, .95); });
+  light((ep[0]*TS+8)*SCALE, (ep[1]*TS+8)*SCALE, 26*SCALE, .6);
+  if (S.stage < L.stageTiles.length){ var o2 = findTile(L.stageTiles[S.stage]); light((o2[0]*TS+8)*SCALE, (o2[1]*TS+8)*SCALE, 24*SCALE, .7); }
+  ctx.drawImage(shade, 0, 0);
+}
+
+function ambient(now){
+  if (S.mode === 'screen' || S.mode === 'intro') return;
+  if (L.id === 1){
+    if (S.stage <= 2 && now > S.nextKnock){
+      if (S.nextKnock){ SFX.knock(); S.knockShakeUntil = now + 800; }
+      S.nextKnock = now + 7000 + Math.random()*6000;
+    }
+    if (now > S.nextCrackle){ SFX.crackle(); S.nextCrackle = now + 400 + Math.random()*1800; }
+  } else {
+    if (now > S.nextKnock){ if (S.nextKnock) SFX.murmur(); S.nextKnock = now + 9000 + Math.random()*8000; }
+  }
+}
+function loop(now){
+  if (!now) now = performance.now();
+  stepMove(now); tryMove(now); ambient(now);
+  if (S.mode === 'play' && Date.now() - S.lastTick > 25000){ S.lastTick = Date.now(); penalty(1); }
+  if (S.mode !== 'play') S.lastTick = Math.max(S.lastTick, Date.now() - 25000);
+  draw(now);
+  requestAnimationFrame(loop);
+}
+
+/* ================= Overlays ================= */
+function openModal(nodes){
+  S.mode = 'modal'; held = [];
+  var mb = $('mbody'); mb.innerHTML = '';
+  nodes.forEach(function(n){ mb.appendChild(n); });
+  $('modal').hidden = false; $('modal').scrollTop = 0;
+}
+function closeModal(){ $('modal').hidden = true; S.mode = 'play'; }
+function openScreen(nodes){
+  S.mode = 'screen'; held = [];
+  var sb = $('sbody'); sb.innerHTML = '';
+  nodes.forEach(function(n){ sb.appendChild(n); });
+  $('screen').hidden = false; $('screen').scrollTop = 0;
+}
+function closeScreen(){ $('screen').hidden = true; S.mode = 'play'; }
+function openStage(i){
+  var st = STAGES[i];
+  if (L.id === 2 && i === 4) SFX.gavel(); else SFX.page();
+  openModal([h('div', {'class':'sheet'},
+    h('div', {'class':'eyebrow'}, st.eyebrow),
+    h('h2', null, st.title),
+    h('p', null, st.story),
+    h('p', {'class':'task'}, st.task),
+    st.body(),
+    h('p', {'class':'note', id:'hintbox', hidden:true}),
+    h('div', {'class':'btn-row'}, h('button', {'class':'btn ghost', type:'button', onclick: closeModal}, 'Отойти'))
+  )]);
+}
+function solved(html){
+  var st = S.stage; SFX.ok();
+  var next = h('button', {'class':'btn', type:'button', onclick: function(){
+    closeModal(); S.stage = st + 1;
+    for (var dk in L.doorsAfter){ if (L.doorsAfter[dk] === st){ S.doors[dk] = true; SFX.door(); } }
+    updateHud();
+    if (S.stage >= STAGES.length){ finale(); return; }
+    say(STAGES[st].after);
+  }}, st === STAGES.length-1 ? 'Завершить главу' : 'Продолжить');
+  var box = h('div', {'class':'sheet'}, h('div', {'class':'eyebrow'}, L.id === 1 ? 'Замок открыт' : 'Дело решено'), h('div', {'class':'fb good', html:html}), h('div', {'class':'btn-row'}, next));
+  $('mbody').appendChild(box);
+  try { box.scrollIntoView({block:'start', behavior:'smooth'}); } catch(e){ box.scrollIntoView(); }
+}
+
+/* ================= Screens ================= */
+function chapterButton(i, label){
+  var lv = LEVELS[i];
+  return h('button', {'class':'chap', type:'button', onclick: function(){ audioInit(); SFX.blip(); startLevel(i); levelIntro(); }},
+    h('span', {'class':'cn'}, label), h('span', {'class':'ct'}, lv.name.replace(/^Глава [IV]+\. /,'')), h('span', {'class':'cd'}, i === 0 ? 'Лекция 1: понятие, источники и принципы. Entick v Carrington.' : 'Лекция 2: институты и механизмы. M v Home Office, GCHQ, Wednesbury.'));
+}
+function menu(){
+  startLevel(0);
+  openScreen([
+    h('div', {'class':'intro'},
+      h('div', {'class':'date'}, 'Тема 4 · Основы английского публичного права'),
+      h('h1', null, 'Детектив Энтик'),
+      h('p', {'class':'lead'}, 'Пиксельная RPG по шести ключевым делам английского публичного права. Ходите по карте, осматривайте предметы и открывайте замки, отвечая на вопросы.')
+    ),
+    h('div', {'class':'sheet'},
+      h('div', {'class':'eyebrow'}, 'Выберите главу'),
+      h('div', {'class':'chapters'}, chapterButton(0, 'Глава I'), chapterButton(1, 'Глава II')),
+      h('p', {'class':'note'}, 'Управление: стрелки или WASD и пробел на компьютере; крестик и красная кнопка на телефоне. Звук включается кнопкой вверху; на iPhone проверьте, что выключен беззвучный режим.')
+    )
+  ]);
+}
+function levelIntro(){
+  openScreen([
+    h('div', {'class':'intro'},
+      h('div', {'class':'date'}, L.date),
+      h('h1', null, L.name),
+      h('p', {'class':'lead'}, L.intro.lead),
+      h('p', {'class':'sub'}, L.intro.sub)
+    ),
+    h('div', {'class':'sheet'},
+      h('div', {'class':'eyebrow'}, 'Как играть'),
+      h('p', null, 'Золотая метка показывает, куда идти. Подойдите к предмету и нажмите «Действие» или пробел. Если не знаете, что делать, поговорите с персонажем на карте.'),
+      h('div', {'class':'btn-row'},
+        h('button', {'class':'btn', type:'button', onclick: function(){ audioInit(); closeScreen(); S.start = Date.now(); S.lastTick = Date.now(); say(npcLines()); }}, 'Начать'),
+        h('button', {'class':'btn ghost', type:'button', onclick: menu}, 'К выбору главы'))
+    )
+  ]);
+}
+function caught(){
+  if (S.mode === 'screen') return;
+  var at = S.stage;
+  $('modal').hidden = true; $('dlg').hidden = true; SFX.bad();
+  openScreen([h('div', {'class':'sheet'},
+    h('div', {'class':'eyebrow'}, 'Шкала дошла до 100%'),
+    h('h2', null, L.caught[0]),
+    h('p', null, L.caught[1] + ' Можно продолжить с задания ' + (at+1) + ': шкала опустится до 50%.'),
+    h('div', {'class':'btn-row'},
+      h('button', {'class':'btn', type:'button', onclick: function(){ S.danger = 50; updateHud(); closeScreen(); }}, 'Продолжить'),
+      h('button', {'class':'btn ghost', type:'button', onclick: menu}, 'В меню'))
+  )]);
+}
+function finale(){
+  SFX.win();
+  var secs = Math.max(1, Math.round((Date.now() - S.start)/1000));
+  var mm = Math.floor(secs/60), ss = ('0' + (secs%60)).slice(-2);
+  var score = S.mistakes + S.hints;
+  var rank = score === 0 ? 'Лорд главный судья' : score <= 3 ? 'Королевский адвокат' : score <= 7 ? 'Барристер' : 'Студент-правовед';
+  function row(y,c,l){ return h('li', null, h('span', {'class':'yr'}, y), h('div', null, h('div', {'class':'cs'}, c), h('div', {'class':'ln'}, l))); }
+  var buttons = [];
+  if (L.id === 1) buttons.push(h('button', {'class':'btn', type:'button', onclick: function(){ startLevel(1); levelIntro(); }}, 'Глава II'));
+  buttons.push(h('button', {'class':L.id === 1 ? 'btn ghost' : 'btn', type:'button', onclick: menu}, 'В меню'));
+  openScreen([
+    h('div', {'class':'intro'},
+      h('div', {'class':'date'}, L.finale.date),
+      h('h1', null, L.finale.title),
+      h('p', {'class':'lead'}, L.finale.lead + ' Ваше звание: ' + rank + '.')
+    ),
+    h('div', {'class':'sheet'},
+      h('div', {'class':'eyebrow'}, L.name),
+      h('div', {'class':'stats'},
+        h('div', {'class':'stat'}, h('span', {'class':'k'}, 'Время'), h('span', {'class':'v'}, mm + ':' + ss)),
+        h('div', {'class':'stat'}, h('span', {'class':'k'}, 'Ошибки'), h('span', {'class':'v'}, String(S.mistakes))),
+        h('div', {'class':'stat'}, h('span', {'class':'k'}, 'Подсказки'), h('span', {'class':'v'}, String(S.hints)))
+      ),
+      h('div', {'class':'eyebrow'}, 'Шесть дел темы'),
+      h('ul', {'class':'timeline'},
+        row('1765','Entick v Carrington','Власть действует только на основании нормы права.'),
+        row('1947','Wednesbury','Суд отменяет лишь абсурдно неразумные решения властей.'),
+        row('1984','GCHQ','Три основания judicial review; прерогатива подконтрольна суду.'),
+        row('1993','M v Home Office','Министр обязан исполнять решения суда.'),
+        row('2005','Jackson','Суверенитет Парламента — норма общего права.'),
+        row('2019','Miller','Прерогатива не может парализовать Парламент.')
+      ),
+      h('p', {'class':'note'}, 'Покажите этот экран преподавателю: время, ошибки и подсказки.'),
+      h('div', {'class':'btn-row'}, buttons)
+    )
+  ]);
+}
+
+setMuted(muted);
+menu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
